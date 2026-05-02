@@ -1,59 +1,33 @@
 # ApiFe
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.9.
+Frontend interactivo en Angular para explorar las APIs del backend. Incluye dos módulos principales:
 
-## Development server
+- ✉️ **Email Verifier** — verifica, consulta, edita y elimina registros de emails
+- 🌐 **Traductor** — traduce texto entre 11 idiomas con detección automática del idioma origen
 
-To start a local development server, run:
+El backend debe estar corriendo en `http://localhost:8081`. Puedes ver la documentación en [Swagger UI](http://localhost:8081/swagger-ui.html).
+
+## Requisitos
+
+- Node.js
+- Angular CLI (`npm install -g @angular/cli`)
+
+## Instalación
+
+```bash
+npm install
+```
+
+## Desarrollo
 
 ```bash
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Abre `http://localhost:4200` en el navegador.
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+## Build
 
 ```bash
 ng build
 ```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
