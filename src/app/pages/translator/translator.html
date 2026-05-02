@@ -1,0 +1,255 @@
+<div class="page">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <span class="page-icon">🌐</span>
+      <div>
+        <h1>Traductor de Texto</h1>
+        <p>Traduce texto entre 11 idiomas usando la API del backend</p>
+      </div>
+    </div>
+    <div class="tab-switcher">
+      <button class="tab-btn" [class.active]="activeTab() === 'translate'" (click)="activeTab.set('translate')">
+        Traducir
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'history'" (click)="activeTab.set('history'); loadHistory()">
+        Historial
+        @if (history().length > 0) {
+          <span class="tab-count">{{ history().length }}</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Translate Tab -->
+  @if (activeTab() === 'translate') {
+    <div class="tab-content fade-in">
+      <div class="translator-card card">
+        <!-- Language selector bar -->
+        <div class="lang-bar">
+          <div class="form-group lang-select">
+            <label>Idioma origen</label>
+            <select [value]="fromLang()" (change)="fromLang.set($any($event.target).value)">
+              @for (lang of languages; track lang.value) {
+                <option [value]="lang.value">{{ lang.label }}</option>
+              }
+            </select>
+          </div>
+
+          <button class="swap-btn" (click)="swapLanguages()" [disabled]="fromLang() === 'AUTO'" title="Intercambiar idiomas">
+            ⇄
+          </button>
+
+          <div class="form-group lang-select">
+            <label>Idioma destino</label>
+            <select [value]="toLang()" (change)="toLang.set($any($event.target).value)">
+              @for (lang of languages.slice(1); track lang.value) {
+                <option [value]="lang.value">{{ lang.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Text areas -->
+        <div class="text-areas">
+          <div class="text-panel">
+            <div class="text-panel-header">
+              <span>Texto original</span>
+              <span class="char-count">{{ textInput().length }} caracteres</span>
+            </div>
+            <textarea
+              placeholder="Escribe el texto que deseas traducir..."
+              [value]="textInput()"
+              (input)="textInput.set($any($event.target).value)"
+              rows="6"
+            ></textarea>
+          </div>
+
+          <div class="text-divider">
+            <button class="btn btn-primary translate-btn" (click)="translate()" [disabled]="loading() || !textInput().trim()">
+              @if (loading()) {
+                <span class="spinner"></span>
+                Traduciendo...
+              } @else {
+                ▶ Traducir
+              }
+            </button>
+          </div>
+
+          <div class="text-panel">
+            <div class="text-panel-header">
+              <span>Traducción</span>
+              @if (result()) {
+                <button class="btn btn-secondary btn-sm" (click)="copyResult()">
+                  {{ copied() ? '✓ Copiado' : '📋 Copiar' }}
+                </button>
+              }
+            </div>
+            <div class="result-area" [class.has-result]="result()">
+              @if (loading()) {
+                <div class="translating-indicator">
+                  <span class="spinner spinner-dark"></span>
+                  <span>Traduciendo...</span>
+                </div>
+              } @else if (result()) {
+                <p class="translated-text fade-in">{{ result()!.translatedText }}</p>
+              } @else {
+                <p class="placeholder-text">La traducción aparecerá aquí...</p>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Result meta -->
+        @if (result()) {
+          <div class="result-meta fade-in">
+            <span>🕐 {{ formatDate(result()!.translatedAt) }}</span>
+            <span>·</span>
+            <span>{{ getLangLabel(result()!.fromLanguage) }} → {{ getLangLabel(result()!.toLanguage) }}</span>
+            <span>·</span>
+            <span class="mono">ID: {{ result()!.id }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Language grid -->
+      <div class="lang-grid">
+        @for (lang of languages.slice(1); track lang.value) {
+          <button class="lang-chip" (click)="toLang.set(lang.value)" [class.active]="toLang() === lang.value">
+            {{ lang.label }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- History Tab -->
+  @if (activeTab() === 'history') {
+    <div class="tab-content fade-in">
+      <div class="history-toolbar">
+        <span class="history-count">{{ activeHistory.length }} activos · {{ deletedHistory.length }} eliminados</span>
+        <button class="btn btn-secondary btn-sm" (click)="loadHistory()" [disabled]="historyLoading()">
+          @if (historyLoading()) { <span class="spinner spinner-dark"></span> }
+          🔄 Actualizar
+        </button>
+      </div>
+
+      @if (historyLoading()) {
+        <div class="empty-state">
+          <span class="spinner spinner-dark" style="width:32px;height:32px;border-width:3px"></span>
+          <p>Cargando historial...</p>
+        </div>
+      } @else if (history().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">📭</span>
+          <p>No hay traducciones aún. Traduce algo para empezar.</p>
+        </div>
+      } @else {
+        <!-- Active Records -->
+        @if (activeHistory.length > 0) {
+          <div class="section-header">
+            <h3>✅ Traducciones Activas</h3>
+            <span class="section-count">{{ activeHistory.length }}</span>
+          </div>
+          <div class="records-list">
+            @for (record of activeHistory; track record.id) {
+              <div class="record-card card">
+                @if (editingId() === record.id) {
+                  <div class="record-edit">
+                    <div class="form-group" style="flex:1">
+                      <textarea
+                        [value]="editText()"
+                        (input)="editText.set($any($event.target).value)"
+                        rows="2"
+                        placeholder="Nuevo texto..."
+                      ></textarea>
+                    </div>
+                    <div class="edit-langs">
+                      <select [value]="editFrom()" (change)="editFrom.set($any($event.target).value)">
+                        @for (lang of languages; track lang.value) {
+                          <option [value]="lang.value">{{ lang.label }}</option>
+                        }
+                      </select>
+                      <span>→</span>
+                      <select [value]="editTo()" (change)="editTo.set($any($event.target).value)">
+                        @for (lang of languages.slice(1); track lang.value) {
+                          <option [value]="lang.value">{{ lang.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="edit-actions">
+                      <button class="btn btn-success btn-sm" (click)="saveEdit(record.id)">✓ Guardar</button>
+                      <button class="btn btn-secondary btn-sm" (click)="cancelEdit()">✗ Cancelar</button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="record-main">
+                    <div class="record-texts">
+                      <div class="record-original">
+                        <span class="lang-tag">{{ record.fromLanguage }}</span>
+                        <span>{{ record.originalText }}</span>
+                      </div>
+                      <span class="record-arrow">→</span>
+                      <div class="record-translated">
+                        <span class="lang-tag lang-tag-to">{{ record.toLanguage }}</span>
+                        <span>{{ record.translatedText }}</span>
+                      </div>
+                    </div>
+                    <div class="record-footer">
+                      <span class="record-date">{{ formatDate(record.translatedAt) }}</span>
+                      <div class="record-actions">
+                        <button class="btn btn-secondary btn-sm btn-icon" title="Editar" (click)="startEdit(record)">✏️</button>
+                        <button class="btn btn-danger btn-sm btn-icon" title="Eliminar" (click)="delete(record.id)">🗑</button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Deleted Records -->
+        @if (deletedHistory.length > 0) {
+          <div class="section-header deleted-section">
+            <h3>🗑 Traducciones Eliminadas</h3>
+            <span class="section-count">{{ deletedHistory.length }}</span>
+          </div>
+          <div class="records-list">
+            @for (record of deletedHistory; track record.id) {
+              <div class="record-card card record-deleted">
+                <div class="record-main">
+                  <div class="record-texts">
+                    <div class="record-original">
+                      <span class="lang-tag">{{ record.fromLanguage }}</span>
+                      <span>{{ record.originalText }}</span>
+                    </div>
+                    <span class="record-arrow">→</span>
+                    <div class="record-translated">
+                      <span class="lang-tag lang-tag-to">{{ record.toLanguage }}</span>
+                      <span>{{ record.translatedText }}</span>
+                    </div>
+                  </div>
+                  <div class="record-footer">
+                    <span class="record-date">{{ formatDate(record.translatedAt) }}</span>
+                    <div class="record-actions">
+                      <span class="badge badge-gray">🗑 Eliminado</span>
+                      <button class="btn btn-success btn-sm" (click)="restore(record.id)">↩ Restaurar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (activeHistory.length === 0 && deletedHistory.length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon">📭</span>
+            <p>No hay traducciones aún. Traduce algo para empezar.</p>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

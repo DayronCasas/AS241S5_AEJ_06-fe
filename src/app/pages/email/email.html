@@ -1,0 +1,218 @@
+<div class="page">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <span class="page-icon">✉️</span>
+      <div>
+        <h1>Verificador de Email</h1>
+        <p>Comprueba si una dirección de correo es válida y existe</p>
+      </div>
+    </div>
+    <div class="tab-switcher">
+      <button class="tab-btn" [class.active]="activeTab() === 'verify'" (click)="activeTab.set('verify')">
+        Verificar
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'history'" (click)="activeTab.set('history'); loadHistory()">
+        Historial
+        @if (history().length > 0) {
+          <span class="tab-count">{{ history().length }}</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Verify Tab -->
+  @if (activeTab() === 'verify') {
+    <div class="tab-content fade-in">
+      <div class="verify-layout">
+        <!-- Form -->
+        <div class="card verify-card">
+          <div class="card-header">
+            <h2>Ingresar Email</h2>
+            <p>Escribe la dirección que deseas verificar</p>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="emailInput">Dirección de correo</label>
+              <div class="input-with-btn">
+                <input
+                  id="emailInput"
+                  type="email"
+                  placeholder="ejemplo@gmail.com"
+                  [value]="emailInput()"
+                  (input)="emailInput.set($any($event.target).value)"
+                  (keydown.enter)="verify()"
+                />
+                <button class="btn btn-primary" (click)="verify()" [disabled]="loading() || !emailInput().trim()">
+                  @if (loading()) {
+                    <span class="spinner"></span>
+                    Verificando...
+                  } @else {
+                    🔍 Verificar
+                  }
+                </button>
+              </div>
+            </div>
+
+            <div class="hint-box">
+              <span class="hint-icon">💡</span>
+              <span>El backend comprueba el formato, el dominio y la existencia del buzón.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result -->
+        @if (result()) {
+          <div class="card result-card fade-in" [class.result-valid]="result()!.valid" [class.result-invalid]="!result()!.valid">
+            <div class="result-header">
+              <span class="result-icon">{{ result()!.valid ? '✅' : '❌' }}</span>
+              <div>
+                <h3>{{ result()!.valid ? 'Email Válido' : 'Email Inválido' }}</h3>
+                <p class="result-email">{{ result()!.email }}</p>
+              </div>
+              <span class="badge" [class]="getStatusBadge(result()!)">{{ result()!.status }}</span>
+            </div>
+            <div class="result-details">
+              <div class="detail-row">
+                <span class="detail-label">Razón</span>
+                <span class="detail-value">{{ result()!.reason }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Verificado</span>
+                <span class="detail-value">{{ formatDate(result()!.verifiedAt) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">ID</span>
+                <span class="detail-value mono">{{ result()!.id }}</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Info cards -->
+      <div class="info-grid">
+        <div class="info-card">
+          <span class="info-icon">📋</span>
+          <h4>Formato</h4>
+          <p>Valida que el email tenga la estructura correcta (usuario&#64;dominio.ext)</p>
+        </div>
+        <div class="info-card">
+          <span class="info-icon">🌐</span>
+          <h4>Dominio</h4>
+          <p>Verifica que el dominio exista y tenga registros MX configurados</p>
+        </div>
+        <div class="info-card">
+          <span class="info-icon">📬</span>
+          <h4>Buzón</h4>
+          <p>Comprueba si el buzón de correo está activo y acepta mensajes</p>
+        </div>
+        <div class="info-card">
+          <span class="info-icon">💾</span>
+          <h4>Historial</h4>
+          <p>Cada verificación queda guardada y puede consultarse o eliminarse</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- History Tab -->
+  @if (activeTab() === 'history') {
+    <div class="tab-content fade-in">
+      <div class="history-toolbar">
+        <span class="history-count">{{ activeHistory.length }} activos · {{ deletedHistory.length }} eliminados</span>
+        <button class="btn btn-secondary btn-sm" (click)="loadHistory()" [disabled]="historyLoading()">
+          @if (historyLoading()) { <span class="spinner spinner-dark"></span> }
+          🔄 Actualizar
+        </button>
+      </div>
+
+      @if (historyLoading()) {
+        <div class="empty-state">
+          <span class="spinner spinner-dark" style="width:32px;height:32px;border-width:3px"></span>
+          <p>Cargando historial...</p>
+        </div>
+      } @else if (history().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">📭</span>
+          <p>No hay registros aún. Verifica un email para empezar.</p>
+        </div>
+      } @else {
+        <!-- Active Records -->
+        @if (activeHistory.length > 0) {
+          <div class="section-header">
+            <h3>✅ Registros Activos</h3>
+            <span class="section-count">{{ activeHistory.length }}</span>
+          </div>
+          <div class="records-list">
+            @for (record of activeHistory; track record.id) {
+              <div class="record-card card" [class.record-valid]="record.valid" [class.record-invalid]="!record.valid">
+                @if (editingId() === record.id) {
+                  <!-- Edit mode -->
+                  <div class="record-edit">
+                    <div class="form-group" style="flex:1">
+                      <input
+                        type="email"
+                        [value]="editEmailInput()"
+                        (input)="editEmailInput.set($any($event.target).value)"
+                        (keydown.enter)="saveEdit(record.id)"
+                        (keydown.escape)="cancelEdit()"
+                        placeholder="Nuevo email..."
+                      />
+                    </div>
+                    <button class="btn btn-success btn-sm" (click)="saveEdit(record.id)">✓ Guardar</button>
+                    <button class="btn btn-secondary btn-sm" (click)="cancelEdit()">✗ Cancelar</button>
+                  </div>
+                } @else {
+                  <!-- View mode -->
+                  <div class="record-main">
+                    <div class="record-info">
+                      <span class="record-email">{{ record.email }}</span>
+                      <span class="record-meta">{{ formatDate(record.verifiedAt) }} · {{ record.reason }}</span>
+                    </div>
+                    <div class="record-actions">
+                      <span class="badge" [class]="getStatusBadge(record)">{{ getStatusLabel(record) }}</span>
+                      <button class="btn btn-secondary btn-sm btn-icon" title="Editar" (click)="startEdit(record)">✏️</button>
+                      <button class="btn btn-danger btn-sm btn-icon" title="Eliminar" (click)="delete(record.id)">🗑</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Deleted Records -->
+        @if (deletedHistory.length > 0) {
+          <div class="section-header deleted-section">
+            <h3>🗑 Registros Eliminados</h3>
+            <span class="section-count">{{ deletedHistory.length }}</span>
+          </div>
+          <div class="records-list">
+            @for (record of deletedHistory; track record.id) {
+              <div class="record-card card record-deleted">
+                <div class="record-main">
+                  <div class="record-info">
+                    <span class="record-email">{{ record.email }}</span>
+                    <span class="record-meta">{{ formatDate(record.verifiedAt) }} · {{ record.reason }}</span>
+                  </div>
+                  <div class="record-actions">
+                    <span class="badge badge-gray">🗑 Eliminado</span>
+                    <button class="btn btn-success btn-sm" (click)="restore(record.id)">↩ Restaurar</button>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (activeHistory.length === 0 && deletedHistory.length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon">📭</span>
+            <p>No hay registros aún. Verifica un email para empezar.</p>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>
