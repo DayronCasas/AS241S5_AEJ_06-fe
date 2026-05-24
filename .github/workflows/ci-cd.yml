@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - master
+      - develop
   pull_request:
     branches:
       - main
       - master
+      - develop
 
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
