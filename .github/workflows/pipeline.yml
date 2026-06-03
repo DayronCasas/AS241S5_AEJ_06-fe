@@ -1,0 +1,87 @@
+name: Snyk - Security Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1: Snyk - Análisis de dependencias (SCA)
+  # Detecta vulnerabilidades en paquetes npm
+  # ─────────────────────────────────────────────
+  snyk-dependencies:
+    name: Snyk - Dependency Scan (SCA)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk to check for dependency vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true # No bloquea el pipeline, solo reporta
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk-deps.sarif
+
+      - name: Upload Snyk dependency results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-deps.sarif
+        if: always()
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Snyk Code - Análisis de código fuente (SAST)
+  # Detecta vulnerabilidades en el código TypeScript/Angular
+  # ─────────────────────────────────────────────
+  snyk-code:
+    name: Snyk Code - Static Analysis (SAST)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk Code to check for source code vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true # No bloquea el pipeline, solo reporta
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --sarif-file-output=snyk-code.sarif
+
+      - name: Upload Snyk Code results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-code.sarif
+        if: always()
