@@ -37,7 +37,6 @@ jobs:
         run: npm ci
 
       - name: Run Snyk dependency scan
-        id: snyk-deps
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -45,17 +44,13 @@ jobs:
           npm install -g snyk
           snyk test --severity-threshold=high --sarif-file-output=snyk-deps.sarif || true
 
-      - name: Check if sarif file exists
-        id: check-deps-sarif
+      - name: Ensure sarif file exists
         run: |
-          if [ -f snyk-deps.sarif ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
+          if [ ! -f snyk-deps.sarif ]; then
             echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Snyk","rules":[]}},"results":[]}]}' > snyk-deps.sarif
           fi
 
-      - name: Upload Snyk dependency results to GitHub Security tab
+      - name: Upload dependency results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-deps.sarif
@@ -83,7 +78,6 @@ jobs:
         run: npm ci
 
       - name: Run Snyk Code static analysis
-        id: snyk-code
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -91,13 +85,9 @@ jobs:
           npm install -g snyk
           snyk code test --sarif-file-output=snyk-code.sarif || true
 
-      - name: Check if sarif file exists
-        id: check-code-sarif
+      - name: Ensure sarif file exists
         run: |
-          if [ -f snyk-code.sarif ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
+          if [ ! -f snyk-code.sarif ]; then
             echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SnykCode","rules":[]}},"results":[]}]}' > snyk-code.sarif
           fi
 
@@ -106,3 +96,33 @@ jobs:
         with:
           sarif_file: snyk-code.sarif
         if: always()
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Snyk Monitor
+  # Registra el proyecto en el dashboard de Snyk
+  # Solo se ejecuta en push (no en PRs)
+  # ─────────────────────────────────────────────
+  snyk-monitor:
+    name: Snyk Monitor - Register Project
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snyk Monitor (registrar en dashboard)
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          npm install -g snyk
+          snyk monitor --project-name=AS241S5_AEJ_06-fe
