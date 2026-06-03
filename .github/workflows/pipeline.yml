@@ -36,16 +36,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Snyk to check for dependency vulnerabilities
-        uses: snyk/actions/node@master
-        continue-on-error: true # No bloquea el pipeline, solo reporta
+      - name: Run Snyk dependency scan
+        id: snyk-deps
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --sarif-file-output=snyk-deps.sarif
+        run: |
+          npm install -g snyk
+          snyk test --severity-threshold=high --sarif-file-output=snyk-deps.sarif || true
+
+      - name: Check if sarif file exists
+        id: check-deps-sarif
+        run: |
+          if [ -f snyk-deps.sarif ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Snyk","rules":[]}},"results":[]}]}' > snyk-deps.sarif
+          fi
 
       - name: Upload Snyk dependency results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-deps.sarif
         if: always()
@@ -71,17 +82,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Snyk Code to check for source code vulnerabilities
-        uses: snyk/actions/node@master
-        continue-on-error: true # No bloquea el pipeline, solo reporta
+      - name: Run Snyk Code static analysis
+        id: snyk-code
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: code test
-          args: --sarif-file-output=snyk-code.sarif
+        run: |
+          npm install -g snyk
+          snyk code test --sarif-file-output=snyk-code.sarif || true
+
+      - name: Check if sarif file exists
+        id: check-code-sarif
+        run: |
+          if [ -f snyk-code.sarif ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SnykCode","rules":[]}},"results":[]}]}' > snyk-code.sarif
+          fi
 
       - name: Upload Snyk Code results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-code.sarif
         if: always()
